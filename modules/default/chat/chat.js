@@ -36,17 +36,13 @@ Module.register("chat", {
 
 		try {
 			// 서버 API는 예시입니다. 실제 엔드포인트에 맞춰 수정하세요.
-			const response = await fetch(`http://15.165.32.26:3000/api/v2/users/current-chapter?userId=${encodeURIComponent(this.user_id)}`, {
+			const response = await fetch(`http://15.165.32.26:3000/api/v2/user/current-chapter?userId=${encodeURIComponent(this.user_id)}`, {
 				method: "GET",
 				headers: { "Content-Type": "application/json" }
 			});
 
-			console.log("response:")
-			if (!response.chapter_id) {
-				throw new Error("응답에 chapter_id 없음");
-			}
-
-			this.chapter_id = response.chapter_id; // 전역/인스턴스 변수에 저장
+			const data = await response.json();
+			this.chapterId = data.chapterId; // 전역/인스턴스 변수에 저장
 			this.hasSavedChapter = true;
 
 			console.log("[chat] current_chapter 1회 저장 완료 chapter_id:", this.chapter_id);
@@ -93,7 +89,7 @@ Module.register("chat", {
 						 *
 						 *
 						 */
-						const question = await this.fetchNextQuestion("안녕", true, false);
+						const question = await this.fetchNextQuestion("내 이름은 정은지야.", true, false);
 						this.updateChat(question, "happy");
 						this.playTTS(question);
 					} catch (e) {
@@ -132,7 +128,7 @@ Module.register("chat", {
 	 */
 	async fetchNextQuestion(answer = "안녕", isFirst = false, isNext = true) {
 		try {
-			const response = await fetch(`http://15.165.32.26:3000/api/v2/conversation/${this.chapter_id}`, {
+			const response = await fetch(`http://15.165.32.26:3000/api/v2/conversation/${this.chapterId}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json"
