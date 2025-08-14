@@ -1,0 +1,15 @@
+.info-button-box {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.second-btn {
+    background: none !important;
+    border: none !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 0.95em !important;
+    text-decoration: underline !important;
+    padding: 4px 0 !important;
+    cursor: pointer !important;
+}
