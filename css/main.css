@@ -19,7 +19,11 @@
 }
 
 html {
+<<<<<<< HEAD
   cursor: none;
+=======
+  cursor: unset;
+>>>>>>> test/jimin
   overflow: hidden;
   background: var(--color-background);
   user-select: none;

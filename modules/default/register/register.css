@@ -72,6 +72,21 @@
   padding: 0;
 }
 
+<<<<<<< HEAD
+=======
+.serial-display {
+  color: #fff;                    /* 흰색 텍스트 */
+  padding: 16px 20px;
+  margin: 16px 0 8px 0;
+  border: none;
+  outline: none;
+  font-size: 2rem;              /* 글씨 크게 */
+  font-weight: bold;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+>>>>>>> test/jimin
 /** html style **/
 input {
   all: unset !important; /* 기본 스타일 초기화 */

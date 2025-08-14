@@ -74,6 +74,14 @@ Temporary Items
 [._]*.s[a-w][a-z]
 [._]s[a-w][a-z]
 
+<<<<<<< HEAD
+=======
+/modules/default/shared/**
+/modules/MMM-TTS/
+/modules/MMM-pages/
+/modules/MMM-auto-refresh/
+
+>>>>>>> test/jimin
 ## diff patch
 *.orig
 *.rej
