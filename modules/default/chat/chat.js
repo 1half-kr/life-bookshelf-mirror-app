@@ -13,7 +13,9 @@ Module.register("chat", {
 	currentMessage: null,
 	animInstance: null,
 	hasStarted: false,
-	  isListening: false,
+	isListening: false,
+	hasSavedChapter: false,
+	chapterId: null,
 
 	getScripts() {
 		return ["https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"];
@@ -22,22 +24,45 @@ Module.register("chat", {
 	start() {
 		this.currentExpression = this.config.defaultExpression;
 		this.currentMessage = this.config.defaultMessage;
-		this.accessToken = null;
+		this.user_id = null;
+		this.hasSavedChapter = false;
+		this.chapterId = null;
 		//
 		//console.log(speechSynthesize.getVoices());
+	},
 
+	async saveCurrentChapterOnce() {
+		if (!this.user_id) return;
 
+		try {
+			// 서버 API는 예시입니다. 실제 엔드포인트에 맞춰 수정하세요.
+			const response = await fetch(`http://15.165.32.26:3000/api/v2/users/current-chapter?userId=${encodeURIComponent(this.user_id)}`, {
+				method: "GET",
+				headers: { "Content-Type": "application/json" }
+			});
+
+			console.log("response:")
+			if (!response.chapter_id) {
+				throw new Error("응답에 chapter_id 없음");
+			}
+
+			this.chapter_id = response.chapter_id; // 전역/인스턴스 변수에 저장
+			this.hasSavedChapter = true;
+
+			console.log("[chat] current_chapter 1회 저장 완료 chapter_id:", this.chapter_id);
+		} catch (e) {
+			console.error("[chat] current_chapter 저장 에러:", e);
+		}
 	},
 
 	notificationReceived(notification, payload) {
 		if (notification === "AAA") {
 			// 현재 페이지가 chat 일 때에만 실행하기
 
-			  this.isListening = true;   
-				this.sendSocketNotification("LOAD_TOKEN");
-                this.sendSocketNotification("RUN_PYTHON");
-                console.log("됨??");
-			
+			this.isListening = true;
+			this.sendSocketNotification("LOAD_TOKEN");
+			this.sendSocketNotification("RUN_PYTHON");
+			console.log("됨??");
 		}
 
 		if (notification === "DOM_OBJECTS_CREATED") {
@@ -48,31 +73,35 @@ Module.register("chat", {
 
 	socketNotificationReceived(notification, payload) {
 		if (notification === "TOKEN_RESULT") {
-			this.accessToken = payload;
-            this.isListening = false; 
-			console.log("CHAT 모듈에서 받은 토큰:", this.accessToken);
+			this.user_id = payload;
+			this.isListening = false;
+			console.log("CHAT 모듈에서 받은 토큰:", this.user_id);
 
 			if (!this.hasStarted) {
 				this.hasStarted = true;
 
-				const waitForToken = async () => {
-					let retries = 0;
-					while (!this.accessToken && retries < 100) {
-						await new Promise((resolve) => setTimeout(resolve, 100));
-						retries++;
+				(async () => {
+					try {
+						// 여기! chapterId 먼저 확보
+						await this.saveCurrentChapterOnce();
+
+						// 확보 후 첫 질문 호출
+						/***
+						 *
+						 *
+						 * 여기 "안녕" 대신 실제 질문 넣으면 됌 !!!!
+						 *
+						 *
+						 */
+						const question = await this.fetchNextQuestion("안녕", true, false);
+						this.updateChat(question, "happy");
+						this.playTTS(question);
+					} catch (e) {
+						// chapter 저장 실패 시 안내
+						this.updateChat("초기 설정에 실패했어요. 잠시 후 다시 시도해 주세요.", "angry");
+						this.playTTS("초기 설정에 실패했어요. 잠시 후 다시 시도해 주세요.");
 					}
-
-					if (!this.accessToken) {
-						this.playTTS("토큰을 받지 못했어요.");
-						return;
-					}
-
-					const question = await this.fetchNextQuestion("안녕", true, false);
-					this.updateChat(question, "happy");
-					this.playTTS(question);
-				};
-
-				waitForToken();
+				})();
 			}
 		}
 
@@ -94,28 +123,33 @@ Module.register("chat", {
 		this.playTTS(question);
 	},
 
+	/**
+	 *
+	 *
+	 * 여기 있는 answer에 실제 말을 넣으면 됌.
+	 *
+	 *
+	 */
 	async fetchNextQuestion(answer = "안녕", isFirst = false, isNext = true) {
 		try {
-			const response = await fetch("https://v2.lifebookshelf.org/api/v1/interviews/interview-chat/rag", {
+			const response = await fetch(`http://15.165.32.26:3000/api/v2/conversation/${this.chapter_id}`, {
 				method: "POST",
 				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.accessToken}`
+					"Content-Type": "application/json"
 				},
 				body: JSON.stringify({
-					answer: answer,
-					is_first: isFirst,
-					is_next: isNext
+					user_id: this.user_id,
+					message: answer
 				})
 			});
-			
-			if (!response.ok) {
-                  throw new Error(`서버 응답 실패: ${response.status} ${response.statusText}`);
-            }
 
-            const data = await response.json();  // 먼저 데이터 파싱
-            console.log("CHAT 서버 응답:", data.response, data.question);  // 그 다음 로그
-            return data.question;
+			if (!response.ok) {
+				throw new Error(`서버 응답 실패: ${response.status} ${response.statusText}`);
+			}
+
+			const data = await response.json(); // 먼저 데이터 파싱
+			console.log("CHAT 서버 응답:", data.response, data.next_question.text); // 그 다음 로그
+			return data.next_question.text; // 이게 돌아오는 대답 !!
 		} catch (error) {
 			console.error("질문 요청 실패:", error);
 			// angry 표정으로 전환
@@ -130,7 +164,7 @@ Module.register("chat", {
 
 	// TTS 재생 함수
 	playTTS(text) {
-		//this.sendNotification("MMM-TTS", text);	
+		//this.sendNotification("MMM-TTS", text);
 	},
 
 	getStyles() {
@@ -153,13 +187,13 @@ Module.register("chat", {
 
 		wrapper.appendChild(messageEl);
 		wrapper.appendChild(animContainer);
-  // 듣기 중 오버레이
-  if (this.isListening) {
-    const overlay = document.createElement("div");
-    overlay.className = "chat-listening";
-    overlay.textContent = "듣는중…";
-    wrapper.appendChild(overlay);
-  }
+		// 듣기 중 오버레이
+		if (this.isListening) {
+			const overlay = document.createElement("div");
+			overlay.className = "chat-listening";
+			overlay.textContent = "듣는중…";
+			wrapper.appendChild(overlay);
+		}
 		return wrapper;
 	},
 

@@ -1,6 +1,6 @@
 Module.register("register", {
 	defaults: {
-		apiUrl: "https://v2.lifebookshelf.org/main/api/v1/auth/device-login",
+		apiUrl: "http://15.165.32.26:3000/api/v2/auth/device-id-register",
 		title: "이 기기의 Serial ID가 맞는지 확인해주세요.",
 		description: "맞다면 '등록하기'를 눌러 인터뷰를 시작해보세요 !"
 	},
@@ -16,24 +16,28 @@ Module.register("register", {
 		return `RPI-${timestamp}-${randomStr}`.toUpperCase();
 	},
 
-	// POST 요청 메서드 정의
+	// POST 요청 메서드 정의 (JSON 기반)
 	postData(data) {
-		const formData = new FormData();
-		formData.append("deviceId", data.serialID);
+		const jsonPayload = {
+			device_id: data.serialID
+		};
 
 		fetch(this.config.apiUrl, {
 			method: "POST",
-			body: formData
+			headers: {
+				"Content-Type": "application/json"
+			},
+			body: JSON.stringify(jsonPayload)
 		})
 			.then(async (res) => {
 				const responseBody = await res.json(); // 먼저 응답 JSON을 파싱
 
-				if (res.status === 202) {
+				if (res.status === 201) {
 					console.log("등록 완료");
 					console.log("서버 응답:", responseBody);
 
-					if (responseBody.accessToken) {
-						this.sendSocketNotification("SAVE_TOKEN", responseBody.accessToken);
+					if (responseBody.user_id) {
+						this.sendSocketNotification("SAVE_TOKEN", responseBody.user_id);
 					}
 					this.movePage();
 				} else {

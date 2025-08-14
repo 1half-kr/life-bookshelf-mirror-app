@@ -1,6 +1,6 @@
 Module.register("metadata", {
 	defaults: {
-		apiEndpoint: "https://v2.lifebookshelf.org/main/api/v1/members/me",
+		apiEndpoint: "http://15.165.32.26:3000/api/v2/user/metadata",
 
 		enumMappings: [
 			{
@@ -37,7 +37,7 @@ Module.register("metadata", {
 	start() {
 		this.step = 0;
 		this.answers = {};
-		this.accessToken = null;
+		this.user_id = null;
 	},
 
 	notificationReceived(notification, payload) {
@@ -53,7 +53,7 @@ Module.register("metadata", {
 
 	socketNotificationReceived(notification, payload) {
 		if (notification === "TOKEN_RESULT") {
-			this.accessToken = payload;
+			this.user_id = payload;
 		}
 	},
 
@@ -190,45 +190,51 @@ Module.register("metadata", {
 		if (this.step === 4) this.sendAnswers();
 	},
 
-	sendAnswers() {
-		// Lottie 애니메이션
-		const script = document.createElement("script");
-		script.src = "https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.5/lottie.min.js";
-		script.onload = () => {
-			lottie.loadAnimation({
-				container: document.getElementById("lottie-animation"),
-				renderer: "svg",
-				loop: true,
-				autoplay: true,
-				path: "modules/default/metadata/assets/loading_anime.json"
-			});
-		};
-		document.body.appendChild(script);
+sendAnswers() {
+	// Lottie 애니메이션
+	const script = document.createElement("script");
+	script.src = "https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.5/lottie.min.js";
+	script.onload = () => {
+		lottie.loadAnimation({
+			container: document.getElementById("lottie-animation"),
+			renderer: "svg",
+			loop: true,
+			autoplay: true,
+			path: "modules/default/metadata/assets/loading_anime.json"
+		});
+	};
+	document.body.appendChild(script);
 
-		// FormData 구성
-		const formData = new FormData();
-		for (const key in this.answers) {
-			formData.append(key, this.answers[key]);
-		}
+	// JSON 데이터 구성
+	const jsonData = {
+		user_id: this.user_id,
+		age_group: this.answers.ageGroup,
+		gender: this.answers.gender,
+		education_level: this.answers.educationLevel,
+		marital_status: this.answers.maritalStatus
+	};
 
-		fetch(this.config.apiEndpoint, {
-			method: "PUT",
-			headers: {
-				Authorization: `Bearer ${this.accessToken}`
-			},
-			body: formData
+	fetch(this.config.apiEndpoint, {
+		method: "POST", // ✅ POST로 변경됨
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(jsonData)
+	})
+		.then(async (res) => {
+			if (res.ok) {
+				console.log("응답 성공:");
+				this.sendNotification("PAGE_CHANGED", 2);
+			} else {
+				const errorBody = await res.text();
+				console.error("응답 실패:", res.status, errorBody);
+				alert(`서버 응답 오류\n상태 코드: ${res.status}\n메시지: ${errorBody}`);
+			}
 		})
-			.then(async (res) => {
-				if (res.ok) {
-					console.log("응답 성공:");
-					this.sendNotification("PAGE_CHANGED", 2);
-				} else {
-					console.error("응답 실패:", res.status);
-				}
-			})
-			.catch((err) => {
-				console.error("요청 오류:", err);
-				alert("네트워크 오류가 발생했습니다.");
-			});
-	}
+		.catch((err) => {
+			console.error("요청 오류:", err);
+			alert("네트워크 오류가 발생했습니다.");
+		});
+}
+
 });
