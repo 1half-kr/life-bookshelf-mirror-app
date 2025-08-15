@@ -85,11 +85,11 @@ Module.register("chat", {
 						/***
 						 *
 						 *
-						 * 여기 "안녕" 대신 실제 질문 넣으면 됌 !!!!
+						 * 여기 "안녕" 대신 실제 답변 넣으면 됌 !!!!
 						 *
 						 *
 						 */
-						const question = await this.fetchNextQuestion("내 이름은 정은지야.", true, false);
+						const question = await this.fetchNextQuestion("만나서 반가워! 자기소개 해볼래?", true, false);
 						this.updateChat(question, "happy");
 						this.playTTS(question);
 					} catch (e) {

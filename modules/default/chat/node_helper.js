@@ -3,49 +3,76 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const dirPath = path.resolve(__dirname, "../shared");
+const dirPath  = path.resolve(__dirname, "../shared");
 const tokenPath = path.join(dirPath, "access_token.json");
 
-// Python 스크립트 경로
-const pythonPath = "/home/tdd_jimin/tdd/venv/bin/python3";
-const scriptPath2 = "/home/tdd_jimin/tdd/input.py";
+const pythonPath  = "/home/tdd_jimin/tdd/.venv/bin/python3";
+const daemonPath  = "/home/tdd_jimin/tdd/stt_daemon.py";
 
-module.exports = NodeHelper.create({	
-    runPython() {
-        const pyProc = spawn(pythonPath, [scriptPath2]); 
-		pyProc.stdout.on("data", (data) => {
-			const result = data.toString().trim();
-			console.log(`[talking][stdout] ${result}`);
+module.exports = NodeHelper.create({
+  start() {
+    this.py = null;
+    this._startPythonDaemon();
+  },
 
-			// 음성 인식 결과를 프론트에 전달
-			this.sendSocketNotification("VOICE_RESULT", result);
-		});
+  _startPythonDaemon() {
+    if (this.py) return;
+    this.py = spawn(pythonPath, ["-u", daemonPath], { stdio: ["pipe", "pipe", "pipe"] });
 
-		pyProc.stderr.on("data", (data) => {
-			console.error(`[talking][stderr] ${data.toString().trim()}`);
-		});
+    this.py.stdout.on("data", (buf) => {
+      const line = buf.toString().trim();
+      try {
+        const msg = JSON.parse(line);
+        if (msg.type === "result") {
+          const text = msg.text || "";
+          console.log("[talking][DATA]", text);
+          this.sendSocketNotification("VOICE_RESULT", text);
+        } else if (msg.type === "error") {
+          console.warn("[talking] python error:", msg.message);
+        }
+      } catch {
+        console.warn("[talking] non-JSON:", line);
+      }
+    });
 
-		pyProc.on("close", (code) => {
-			console.log(`[talking] Python 종료 (코드: ${code})`);
-		}); 
-	},
+    this.py.stderr.on("data", (buf) => {
+      console.error(`[talking][stderr] ${buf.toString().trim()}`);
+    });
 
-	socketNotificationReceived(notification, payload) {
-		if (notification === "LOAD_TOKEN") {
-			let token = null;
+    this.py.on("close", (code) => {
+      console.log(`[talking] Python 종료 (코드: ${code})`);
+      this.py = null;
+    });
+  },
 
-			if (fs.existsSync(tokenPath)) {
-				token = JSON.parse(fs.readFileSync(tokenPath, "utf8")).token;
-				console.log("[metadata helper] 토큰 로드 완료:", token);
-			} else {
-				console.warn("[metadata helper] 토큰 파일 없음");
-			}
-			
+  _sendCmd(cmd) {
+    if (!this.py || !this.py.stdin.writable) {
+      console.warn("[talking] python not running, restarting...");
+      this._startPythonDaemon();
+    }
+    try {
+      this.py.stdin.write(cmd + "\n");
+    } catch (e) {
+      console.error("[talking] send cmd failed:", e);
+    }
+  },
 
-			this.sendSocketNotification("TOKEN_RESULT", token);
-		}
-		if (notification === "RUN_PYTHON") {console.log("됨");this.runPython();}
-	},
+  socketNotificationReceived(notification, payload) {
+    if (notification === "LOAD_TOKEN") {
+      let token = null;
+      if (fs.existsSync(tokenPath)) {
+        token = JSON.parse(fs.readFileSync(tokenPath, "utf8")).token;
+        console.log("[metadata helper] 토큰 로드 완료:", token);
+      } else {
+        console.warn("[metadata helper] 토큰 파일 없음");
+      }
+      this.sendSocketNotification("TOKEN_RESULT", token);
+    }
 
-
+    if (notification === "RUN_PYTHON") {
+      // 오디오만: RECORD, 영상 포함: RECORD_AV
+      this._sendCmd("RECORD");
+      // this._sendCmd("RECORD_AV"); // ← **영상까지 사용하려면 이 줄의 주석 해제**
+    }
+  },
 });
