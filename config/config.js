@@ -54,7 +54,7 @@ let config = {
         			["register"],
         			["metadata"],
         			["info"],
-        			["chat"],
+        			// ["chat"], // chat 모듈 제거 - 개별 등록으로 사용
         			["chapter"],
         			["mypage"]
       			],

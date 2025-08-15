@@ -9,6 +9,8 @@
  * 5. 음성 입력 및 API 통신
  */
 
+console.log("🔥🔥🔥 CHAT.JS 파일이 로드되었습니다! 현재 시간:", new Date().toLocaleTimeString());
+
 Module.register("chat", {
 	defaults: {
 		wsUrl: "ws://15.165.32.26:3000/ws",
@@ -35,6 +37,7 @@ Module.register("chat", {
 		this.previousChapterId = null; // 이전 챕터 ID (변경 감지용)
 		this.conversationHistory = []; // 대화 히스토리
 		this.isFirstTimeInChapter = false; // 챕터 첫 접근 여부
+		this.isInitialized = false; // 초기화 완료 여부 (중복 방지)
 
 		// === WebSocket 관련 ===
 		this.ws = null; // WebSocket 연결
@@ -245,15 +248,22 @@ Module.register("chat", {
 				console.log("[Chat] 🎯 Chat 페이지 활성화");
 				this.show(1000);
 
-				// 인터뷰 초기화 시작
-				setTimeout(() => {
-					this.initializeInterview();
-				}, 1000);
+				// 초기화가 안 된 경우에만 실행
+				if (!this.isInitialized) {
+					console.log("[Chat] 🔄 페이지 전환으로 인한 초기화");
+					setTimeout(() => {
+						this.initializeInterview();
+					}, 1000);
+				} else {
+					console.log("[Chat] ✅ 이미 초기화됨 - 페이지 전환만 처리");
+				}
 			} else {
 				// 다른 페이지로 전환 시
 				console.log("[Chat] 🚪 Chat 페이지 비활성화, 페이지:", payload);
 				this.hide(500);
 				this.disconnectWebSocket();
+				// 페이지를 벗어날 때 초기화 상태 리셋
+				this.isInitialized = false;
 			}
 		}
 	},
@@ -269,6 +279,12 @@ Module.register("chat", {
 	async initializeInterview() {
 		console.log("[Chat] 🎬 인터뷰 초기화 시작");
 
+		// 중복 초기화 방지
+		if (this.isInitialized) {
+			console.log("[Chat] ⚠️ 이미 초기화됨 - 중복 실행 방지");
+			return;
+		}
+
 		// 1단계: 사용자 ID 확인
 		if (!this.userId) {
 			console.error("[Chat] ❌ 사용자 ID가 없습니다");
@@ -277,6 +293,9 @@ Module.register("chat", {
 		}
 
 		try {
+			// 초기화 시작 플래그 설정
+			this.isInitialized = true;
+
 			// 2단계: WebSocket 연결
 			console.log("[Chat] 🔌 WebSocket 연결 시작");
 			this.initializeWebSocket();
@@ -305,6 +324,8 @@ Module.register("chat", {
 		} catch (error) {
 			console.error("[Chat] ❌ 인터뷰 초기화 실패:", error);
 			this.updateConnectionStatus("인터뷰 준비 실패 ❌");
+			// 실패 시 플래그 리셋
+			this.isInitialized = false;
 		}
 	},
 
@@ -812,10 +833,19 @@ Module.register("chat", {
 	 * DOM 생성
 	 */
 	getDom() {
-		console.log("[Chat] 🎨 DOM 생성 시작");
+		console.log("🎨🎨🎨 CHAT getDom 메서드가 호출되었습니다! 새로운 UI를 생성합니다!");
+		console.log("[Chat] 🎨 DOM 생성 시작 - 현재 시간:", new Date().toLocaleTimeString());
+
+		// 기존 chat-wrapper 제거 (중복 방지)
+		const existingWrappers = document.querySelectorAll('.chat-wrapper');
+		existingWrappers.forEach((wrapper, index) => {
+			console.log(`[Chat] 🗑️ 기존 chat-wrapper ${index + 1} 제거`);
+			wrapper.remove();
+		});
 
 		const wrapper = document.createElement("div");
 		wrapper.className = "chat-wrapper";
+		wrapper.id = `chat-wrapper-${Date.now()}`; // 고유 ID 추가
 
 		// 메인 컨테이너 (좌우 배치)
 		const mainContainer = document.createElement("div");
@@ -1009,10 +1039,23 @@ Module.register("chat", {
 	},
 
 	/**
-	 * 강아지 질문 표시 (AI 응답과 동일)
+	 * 강아지 질문 표시 (AI 응답과 동일) - 중복 방지
 	 */
 	displayDogQuestion(question) {
 		console.log("[Chat] 🐕 강아지 질문 표시:", question);
+		
+		// 중복 메시지 방지 - 같은 메시지가 이미 있는지 확인
+		const messagesContainer = document.getElementById("messagesContainer");
+		if (messagesContainer) {
+			const existingMessages = messagesContainer.querySelectorAll('.assistant-message .message-text');
+			for (let msg of existingMessages) {
+				if (msg.textContent.trim() === question.trim()) {
+					console.log("[Chat] ⚠️ 중복 메시지 방지 - 이미 존재하는 메시지:", question.substring(0, 50));
+					return;
+				}
+			}
+		}
+		
 		this.addAssistantMessage(question);
 	},
 
@@ -1074,14 +1117,95 @@ Module.register("chat", {
 	},
 
 	/**
-	 * 연결 상태 업데이트
+	 * 상태 메시지 업데이트 (답변 대기 등)
 	 */
-	updateConnectionStatus(status) {
-		console.log("[Chat] 📊 연결 상태 업데이트:", status);
-
+	updateStatusMessage(message, isWaiting = false) {
+		console.log("[Chat] 📊 상태 메시지 업데이트:", message);
+		
 		const statusDisplay = document.getElementById("statusDisplay");
 		if (statusDisplay) {
-			statusDisplay.textContent = status;
+			statusDisplay.textContent = message;
+			
+			if (isWaiting) {
+				statusDisplay.classList.add("waiting");
+			} else {
+				statusDisplay.classList.remove("waiting");
+			}
+		}
+	},
+
+	/**
+	 * 연결 상태 업데이트 (호환성을 위해 유지)
+	 */
+	updateConnectionStatus(status) {
+		this.updateStatusMessage(status, false);
+	},
+
+	/**
+	 * 강아지 상태 변경 (말하기/듣기)
+	 */
+	setDogState(state) {
+		console.log("[Chat] 🐕 강아지 상태 변경:", state);
+		
+		const dogContainer = document.getElementById("dogAnimation");
+		if (!dogContainer) return;
+
+		// 기존 상태 클래스 제거
+		dogContainer.classList.remove("speaking", "listening");
+
+		// 새 상태 적용
+		switch (state) {
+			case "speaking":
+				dogContainer.classList.add("speaking");
+				this.changeExpression("happy");
+				break;
+			case "listening":
+				dogContainer.classList.add("listening");
+				this.changeExpression("listening");
+				break;
+			default:
+				this.changeExpression("happy");
+		}
+	},
+
+	/**
+	 * 입력 중 표시 ("..." 애니메이션)
+	 */
+	showTypingIndicator() {
+		console.log("[Chat] 💭 입력 중 표시");
+		
+		const messagesContainer = document.getElementById("messagesContainer");
+		if (!messagesContainer) return;
+
+		// 기존 입력 중 표시 제거
+		this.hideTypingIndicator();
+
+		const typingDiv = document.createElement("div");
+		typingDiv.className = "typing-indicator";
+		typingDiv.id = "typingIndicator";
+		typingDiv.innerHTML = `
+			<div class="message-avatar">🤖</div>
+			<div class="typing-content">
+				<div class="typing-dots">
+					<div class="typing-dot"></div>
+					<div class="typing-dot"></div>
+					<div class="typing-dot"></div>
+				</div>
+				<div class="typing-text">답변을 준비하고 있어요...</div>
+			</div>
+		`;
+
+		messagesContainer.appendChild(typingDiv);
+		this.scrollToBottom();
+	},
+
+	/**
+	 * 입력 중 표시 숨기기
+	 */
+	hideTypingIndicator() {
+		const typingIndicator = document.getElementById("typingIndicator");
+		if (typingIndicator) {
+			typingIndicator.remove();
 		}
 	},
 
@@ -1183,125 +1307,6 @@ Module.register("chat", {
 				fallback.style.fontSize = '120px';
 				fallback.style.textAlign = 'center';
 			}
-		}
-	},
-
-	/**
-	 * 입력 중 표시 ("..." 애니메이션)
-	 */
-	showTypingIndicator() {
-		console.log("[Chat] 💭 입력 중 표시");
-		
-		const messagesContainer = document.getElementById("messagesContainer");
-		if (!messagesContainer) return;
-
-		// 기존 입력 중 표시 제거
-		this.hideTypingIndicator();
-
-		const typingDiv = document.createElement("div");
-		typingDiv.className = "typing-indicator";
-		typingDiv.id = "typingIndicator";
-		typingDiv.innerHTML = `
-			<div class="message-avatar">🤖</div>
-			<div class="typing-content">
-				<div class="typing-dots">
-					<div class="typing-dot"></div>
-					<div class="typing-dot"></div>
-					<div class="typing-dot"></div>
-				</div>
-				<div class="typing-text">답변을 준비하고 있어요...</div>
-			</div>
-		`;
-
-		messagesContainer.appendChild(typingDiv);
-		this.scrollToBottom();
-	},
-
-	/**
-	 * 입력 중 표시 숨기기
-	 */
-	hideTypingIndicator() {
-		const typingIndicator = document.getElementById("typingIndicator");
-		if (typingIndicator) {
-			typingIndicator.remove();
-		}
-	},
-
-	/**
-	 * 강아지 상태 변경 (말하기/듣기)
-	 */
-	setDogState(state) {
-		console.log("[Chat] 🐕 강아지 상태 변경:", state);
-		
-		const dogContainer = document.getElementById("dogAnimation");
-		if (!dogContainer) return;
-
-		// 기존 상태 클래스 제거
-		dogContainer.classList.remove("speaking", "listening");
-
-		// 새 상태 적용
-		switch (state) {
-			case "speaking":
-				dogContainer.classList.add("speaking");
-				this.changeExpression("happy");
-				break;
-			case "listening":
-				dogContainer.classList.add("listening");
-				this.changeExpression("listening");
-				break;
-			default:
-				this.changeExpression("happy");
-		}
-	},
-
-	/**
-	 * 강아지 표정 변경
-	 */
-	changeExpression(expression) {
-		console.log("[Chat] 😊 강아지 표정 변경:", expression);
-		this.currentExpression = expression;
-
-		if (!this.lottieAnimation) {
-			console.warn("[Chat] ⚠️ 강아지 애니메이션이 로드되지 않음");
-			return;
-		}
-
-		const dogContainer = document.getElementById("dogAnimation");
-		if (!dogContainer) return;
-
-		let animationPath = '';
-		switch (expression) {
-			case 'happy':
-				animationPath = './modules/default/chat/assets/happy_dog.json';
-				break;
-			case 'thinking':
-			case 'listening':
-				animationPath = './modules/default/chat/assets/surprise_dog.json';
-				break;
-			case 'sad':
-			case 'error':
-				animationPath = './modules/default/chat/assets/angry_dog.json';
-				break;
-			default:
-				animationPath = './modules/default/chat/assets/happy_dog.json';
-		}
-
-		try {
-			// 기존 애니메이션 제거
-			this.lottieAnimation.destroy();
-
-			// 새 애니메이션 로드
-			this.lottieAnimation = lottie.loadAnimation({
-				container: dogContainer,
-				renderer: 'svg',
-				loop: true,
-				autoplay: true,
-				path: animationPath
-			});
-
-			console.log("[Chat] ✅ 강아지 표정 변경 완료:", expression);
-		} catch (error) {
-			console.error("[Chat] ❌ 강아지 표정 변경 실패:", error);
 		}
 	}
 });
