@@ -119,40 +119,37 @@ Module.register("info", {
 						btn.querySelector(".btn-icon").textContent = "🚀";
 						btn.disabled = true;
 
-						// 즉시 강제로 chat 모듈 표시
+						// 2. 여러 방법으로 chat 모듈 표시 시도
 						setTimeout(() => {
-							console.log("[Info] FORCING chat module to show");
+							console.log("[Info] Attempting multiple methods to show chat module");
 							
-							// 1. info 모듈 숨기기
-							this.hide(0);
-							
-							// 2. 직접 chat 모듈 찾아서 강제 표시
-							const chatModule = document.querySelector('.module.chat');
+							// 방법 1: 직접 DOM 조작
+							const chatModule = document.querySelector(".module.chat");
 							if (chatModule) {
-								console.log("[Info] Found chat module - forcing visibility");
-								chatModule.classList.add('visible');
-								chatModule.style.opacity = '1';
-								chatModule.style.pointerEvents = 'auto';
-								chatModule.style.zIndex = '1000';
-								chatModule.style.display = 'block';
+								console.log("[Info] Method 1: Direct DOM manipulation");
+								chatModule.classList.add("visible");
+								chatModule.style.display = "block";
+								chatModule.style.opacity = "1";
+								chatModule.style.visibility = "visible";
+								chatModule.style.zIndex = "2000";
 							} else {
-								console.error("[Info] Chat module not found in DOM!");
+								console.error("[Info] Chat module not found!");
 							}
-							
-							// 3. 알림도 보내기
+
+							// 방법 2: MagicMirror 알림 시스템
+							console.log("[Info] Method 2: Sending notification");
 							this.sendNotification("START_INTERVIEW", { userId: localStorage.getItem("mm_user_id") });
-							
-							// 4. 전체 화면에서 chat만 보이도록 강제
-							setTimeout(() => {
-								const allModules = document.querySelectorAll('.module:not(.chat)');
-								allModules.forEach(module => {
-									if (!module.classList.contains('chat')) {
-										module.style.display = 'none';
-									}
-								});
-							}, 100);
-							
-						}, 100);
+
+							// 방법 3: 페이지 변경 알림 (만약 페이지 시스템을 사용한다면)
+							console.log("[Info] Method 3: Page change notification");
+							this.sendNotification("PAGE_CHANGED", 3); // chat 페이지로 변경
+
+							// 방법 4: 전역 함수 호출 (만약 있다면)
+							if (typeof window.forceShowChat === 'function') {
+								console.log("[Info] Method 4: Global function call");
+								window.forceShowChat();
+							}
+						}, 600);
 					});
 
 					// 호버 효과
@@ -187,14 +184,6 @@ Module.register("info", {
 			if (moduleElement) {
 				moduleElement.classList.add("visible");
 			}
-
-			this.show(1000);
-
-			// chat 모듈을 미리 준비시키기
-			setTimeout(() => {
-				console.log("[Info] Preparing chat module for interview");
-				this.sendNotification("PREPARE_CHAT", { userId: payload.userId });
-			}, 500);
 		}
 	}
 });

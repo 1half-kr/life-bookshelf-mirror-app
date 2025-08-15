@@ -268,36 +268,5 @@ Module.register("metadata", {
 			console.log("[Metadata] Sending METADATA_COMPLETED after showing completion screen");
 			this.sendNotification("METADATA_COMPLETED", { userId: this.userId });
 		}, 3000);
-
-		// FormData 구성
-
-		/*
-		const formData = new FormData();
-		for (const key in this.answers) {
-			formData.append(key, this.answers[key]);
-		}
-
-		fetch(this.config.apiEndpoint, {
-			method: "PUT",
-			headers: {
-				Authorization: `Bearer ${this.accessToken}`
-			},
-			body: formData
-		})
-			.then(async (res) => {
-				if (res.ok) {
-					console.log("응답 성공:");
-					// 페이지 시스템 사용하지 않으므로 PAGE_CHANGED 제거
-					// this.sendNotification("PAGE_CHANGED", 2);
-				} else {
-					console.error("응답 실패:", res.status);
-				}
-			})
-			.catch((err) => {
-				console.error("요청 오류:", err);
-				alert("네트워크 오류가 발생했습니다.");
-			});
-
-			*/
 	}
 });
