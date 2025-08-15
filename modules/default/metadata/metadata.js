@@ -1,7 +1,5 @@
 Module.register("metadata", {
 	defaults: {
-		apiEndpoint: "https://v2.lifebookshelf.org/main/api/v1/members/me",
-
 		enumMappings: [
 			{
 				// step 0: 연령대
@@ -37,24 +35,47 @@ Module.register("metadata", {
 	start() {
 		this.step = 0;
 		this.answers = {};
-		this.accessToken = null;
+		this.isSubmitting = false;
+		this.hide(); // 시작 시 숨김
 	},
 
 	notificationReceived(notification, payload) {
-		if (notification === "PAGE_CHANGED") {
-			this.sendSocketNotification("LOAD_TOKEN");
-		}
-
-		if (notification === "DOM_OBJECTS_CREATED") {
-			const path = this.config.lottiePaths?.[this.currentExpression];
-			if (path) this.loadLottie(path);
+		console.log("[Metadata] Notification received:", notification, "payload:", payload);
+		
+		// USER_REGISTERED 알림 처리
+		if (notification === "USER_REGISTERED") {
+			console.log("[Metadata] User registered:", payload);
+			
+			// userId 설정
+			this.userId = payload.userId;
+			console.log("[Metadata] UserId set to:", this.userId);
+			
+			// profile_completed가 false인 경우에만 metadata 모듈 표시
+			if (!payload.profileCompleted) {
+				console.log("[Metadata] Profile not completed - showing metadata module");
+				
+				// CSS 클래스 추가로 표시
+				const moduleElement = document.querySelector('.module.metadata');
+				if (moduleElement) {
+					moduleElement.classList.add('visible');
+				}
+				
+				this.show(1000);
+				
+				// 사용자 ID 확인
+				const userId = localStorage.getItem("mm_user_id") || payload.userId;
+				if (!userId) {
+					console.error("[Metadata] User ID not found");
+				}
+			} else {
+				console.log("[Metadata] Profile already completed - hiding metadata module");
+				this.hide(500);
+			}
 		}
 	},
 
-	socketNotificationReceived(notification, payload) {
-		if (notification === "TOKEN_RESULT") {
-			this.accessToken = payload;
-		}
+	getScripts() {
+		return ["modules/default/shared/config.js", "modules/default/shared/api-client.js", "https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.5/lottie.min.js"];
 	},
 
 	getStyles() {
@@ -64,6 +85,29 @@ Module.register("metadata", {
 	getDom() {
 		const wrapper = document.createElement("div");
 		wrapper.className = "wrapper";
+
+		// 진행률 표시 (step 4 제외)
+		if (this.step < 4) {
+			const progressContainer = document.createElement("div");
+			progressContainer.className = "progress-container";
+
+			const progressBar = document.createElement("div");
+			progressBar.className = "progress-bar";
+
+			const progressFill = document.createElement("div");
+			progressFill.className = "progress-fill";
+			progressFill.style.width = `${(this.step / 4) * 100}%`;
+
+			progressBar.appendChild(progressFill);
+			progressContainer.appendChild(progressBar);
+
+			const progressText = document.createElement("div");
+			progressText.className = "progress-text";
+			progressText.textContent = `${this.step + 1}/4`;
+			progressContainer.appendChild(progressText);
+
+			wrapper.appendChild(progressContainer);
+		}
 
 		// 상단 좌측 고정 btn
 		const back_btn = document.createElement("img");
@@ -95,14 +139,19 @@ Module.register("metadata", {
 
 		if (this.step < 4) {
 			const options = this.getOptionsForStep();
-			options.forEach((opt) => {
+			options.forEach((opt, index) => {
 				const btn = document.createElement("button");
 				btn.className = "survey-btn";
 				btn.dataset.answer = opt;
 				btn.textContent = opt;
+				btn.style.animationDelay = `${index * 0.1}s`;
 				btn.onclick = () => {
 					console.log("Clicked option:", opt);
-					this.handleAnswer(opt);
+					// 선택 효과 추가
+					btn.classList.add("selected");
+					setTimeout(() => {
+						this.handleAnswer(opt);
+					}, 300);
 				};
 				buttonBox.appendChild(btn);
 			});
@@ -116,29 +165,37 @@ Module.register("metadata", {
 		switch (this.step) {
 			case 0:
 				return `
-        <h1>여행자님의 나이가 궁금해요.</h1> 
-        <p>나이는 단지 숫자일 뿐이죠. 여행자님께서 얼마나 멋진 경험을 쌓아오셨는지 궁금해요. <br /> 여행자님의 나이는 어떻게 되시나요?</p>
+        <div class="question-emoji">👋</div>
+        <h1>안녕하세요! 연세가 어떻게 되시나요?</h1> 
+        <p>나이는 단지 숫자일 뿐이에요. 어르신께서 쌓아오신 소중한 경험들이 더 중요하죠.<br />편하게 알려주시면 됩니다.</p>
         `;
 			case 1:
 				return `
-        <h1>여행자님의 성별은 무엇인가요?</h1> 
-        <p>성별은 우리의 일부일 뿐이지만, 사람마다 특별한 이야기를 담고 있죠. <br /> 여행자님의 성별은 어떻게 되시나요?</p>
+        <div class="question-emoji">🌸</div>
+        <h1>성별을 알려주시겠어요?</h1> 
+        <p>남성분인지 여성분인지 알려주시면, 더 자연스러운 대화를 나눌 수 있을 것 같아요.</p>
         `;
 			case 2:
 				return `
-        <h1>여행자님의 최종 학력은 어떻게 되시나요?</h1> 
-        <p>교육은 우리를 성장시키는 중요한 요소죠. 여행자님의 최종 학력에 대해 알려주세요.</p>
+        <div class="question-emoji">📚</div>
+        <h1>어디까지 공부하셨나요?</h1> 
+        <p>학교를 어디까지 다니셨는지 궁금해요. 배움의 길은 모두 소중하니까요.</p>
         `;
 			case 3:
 				return `
-        <h1>여행자님은 결혼하셨나요?</h1> 
-        <p>결혼은 인생의 큰 전환점이 되기도 하죠. 여행자님은 결혼하셨나요?</p>
+        <div class="question-emoji">💕</div>
+        <h1>결혼은 하셨나요?</h1> 
+        <p>가족 이야기도 소중한 추억 중 하나죠. 편하게 알려주세요.</p>
         `;
 			case 4:
 				return `
-          <h1>질문에 모두 답해주셨네요 !</h1> 
-          <p>답해주신 내용으로 책을 만들기 위한 챕터를 구성 중이에요.<br>잠시만 기다려 주세요...</p>
-          <div id="lottie-animation" style="width: 300px; height: 300px; margin: auto;"></div>
+          <div class="completion-container">
+            <div class="completion-emoji">🎉</div>
+            <h1>모든 질문에 답해주셔서 감사해요!</h1> 
+            <p>알려주신 내용을 바탕으로 어르신만의 특별한 이야기책을 준비하고 있어요.<br/>조금만 기다려주세요...</p>
+            <div id="lottie-animation"></div>
+            <div class="status-message">소중한 이야기를 정리하고 있습니다</div>
+          </div>
         `;
 			default:
 				return `<p>에러 발생</p>`;
@@ -195,6 +252,7 @@ Module.register("metadata", {
 		const script = document.createElement("script");
 		script.src = "https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.5/lottie.min.js";
 		script.onload = () => {
+			// eslint-disable-next-line no-undef
 			lottie.loadAnimation({
 				container: document.getElementById("lottie-animation"),
 				renderer: "svg",
@@ -205,7 +263,15 @@ Module.register("metadata", {
 		};
 		document.body.appendChild(script);
 
+		// case 4 완료 화면을 충분히 보여준 후 info 모듈로 전환 (3초 후)
+		setTimeout(() => {
+			console.log("[Metadata] Sending METADATA_COMPLETED after showing completion screen");
+			this.sendNotification("METADATA_COMPLETED", { userId: this.userId });
+		}, 3000);
+
 		// FormData 구성
+
+		/*
 		const formData = new FormData();
 		for (const key in this.answers) {
 			formData.append(key, this.answers[key]);
@@ -221,7 +287,8 @@ Module.register("metadata", {
 			.then(async (res) => {
 				if (res.ok) {
 					console.log("응답 성공:");
-					this.sendNotification("PAGE_CHANGED", 2);
+					// 페이지 시스템 사용하지 않으므로 PAGE_CHANGED 제거
+					// this.sendNotification("PAGE_CHANGED", 2);
 				} else {
 					console.error("응답 실패:", res.status);
 				}
@@ -230,5 +297,7 @@ Module.register("metadata", {
 				console.error("요청 오류:", err);
 				alert("네트워크 오류가 발생했습니다.");
 			});
+
+			*/
 	}
 });

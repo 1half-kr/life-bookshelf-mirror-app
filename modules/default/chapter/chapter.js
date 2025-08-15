@@ -14,7 +14,15 @@ Module.register("chapter", {
 		return this.config;
 	},
 
-	notificationReceived (notification) {
+	start() {
+		console.log('[Chapter] Chapter module starting');
+		this.hide(); // 시작 시 숨김
+	},
+
+	notificationReceived (notification, payload) {
+		console.log('[Chapter] Notification received:', notification, 'payload:', payload);
+		
+		// DOM_OBJECTS_CREATED 처리만 유지
 		if (notification === "DOM_OBJECTS_CREATED") {
 			const chapterCards = document.querySelectorAll(".chapter-card");
 			chapterCards.forEach((card, index) => {
@@ -40,8 +48,8 @@ Module.register("chapter", {
 
 		sheetItems.querySelectorAll(".item-btn").forEach((btn) => {
 			btn.addEventListener("click", () => {
-				this.hideBottomSheet();
-				this.sendNotification("PAGE_CHANGED", 1); // 상세페이지로 전환
+				// 페이지 시스템 사용하지 않으므로 PAGE_CHANGED 제거
+				// this.sendNotification("PAGE_CHANGED", 1); // 상세페이지로 전환
 			});
 		});
 

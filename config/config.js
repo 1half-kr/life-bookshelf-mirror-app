@@ -39,20 +39,14 @@ let config = {
 
 	modules: [
 		{
-            module: 'MMM-auto-refresh',
-            config: {
-                // See below for configurable options
-				refreshInterval: 30000 // 30 초 간격 refresh
-            }
-        },
-		{
             module: 'MMM-TTS',
 			position: 'top_right',
 			config: {
-				speed: 1.2,
+				speed: 1.0,
 			}
 
         },
+		/*
 		{
     		module: "MMM-pages",
     		config: {
@@ -73,9 +67,12 @@ let config = {
 			rotationTime: 0
     		}
   		},
+		*/
+		/*
 		{
 			module: "alert",
 		},
+		*/
 		/*
 		{
 			module: "updatenotification",
@@ -144,7 +141,7 @@ let config = {
 		// custom modules can be added here
 		{
       		module: "register",
-      		position: "middle_center",  // 위치는 적절히 선택 (예: top_left, bottom_bar 등)
+      		position: "fullscreen_above",  // fullscreen으로 변경
       		config: {
         		// 필요시 추가 설정 가능
       		}
@@ -155,23 +152,23 @@ let config = {
 		},
   		{ 
 			module: "metadata",
-			position: "middle_center",
+			position: "fullscreen_above",  // fullscreen으로 변경
 		},
   		{ 
 			module: "info",
-			position: "middle_center",
+			position: "fullscreen_above",  // fullscreen으로 변경
 		},
   		{ 
 			module: "chat",
-			position: "middle_center",
+			position: "fullscreen_above",  // fullscreen으로 변경
 		},
   		{ 
 			module: "chapter",
-			position: "middle_center",
+			position: "fullscreen_above",  // fullscreen으로 변경
 		},
   		{ 
 			module: "mypage",
-			position: "middle_center",
+			position: "fullscreen_above",  // fullscreen으로 변경
 		}
 	]
 };

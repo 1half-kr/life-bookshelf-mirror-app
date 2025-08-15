@@ -1,53 +1,570 @@
-.survey-wrapper {
-  padding: 2rem;
-  text-align: center;
+/* 
+Metadata 모듈 - 고령자 친화적 파스텔 블루 + 글래스모피즘 디자인
+Register 모듈과 일관된 디자인 언어 적용
+*/
+
+/* 기본적으로 숨김 - USER_REGISTERED 알림으로만 표시 */
+.module.metadata {
+    display: none !important;
 }
 
-.survey-wrapper p {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+.module.metadata.visible {
+    display: block !important;
 }
 
-.button-box {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2열 grid */
-  gap: 1rem;
-  justify-items: stretch; /* 각 grid cell을 100% width로 확장 */
-}
-
-.back-btn {
-  position: fixed;
-  top: 0px;
-  left: 0px;
-  background: white;
-  border-radius: 100px;
-  background-color: rgb(255, 255, 255, 0.5);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  z-index: 9999; /* 필요 시 추가 */
-}
-
-.back-btn.hidden {
-    width: 100%
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100%;
-  position: fixed;
-  top: -100px;
-  left: 0px;
-  background: white;
-  border-radius: 100px;
-  background-color: rgb(255, 255, 255, 0.5);
-    opacity: 0.5;
+    margin: 0;
+    padding: 2vh 2rem;
+    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 30%, #90CAF9 70%, #64B5F6 100%);
+    color: #1565C0;
+    font-family: 'Roboto', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    box-sizing: border-box;
+    z-index: 1000;
+}
+
+/* 배경 글래스 효과 */
+.wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
     pointer-events: none;
-    padding: 0;
-  z-index: 9999; /* 필요 시 추가 */
+}
+
+/* 진행률 표시 */
+.progress-container {
+    position: fixed;
+    top: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 25px;
+    padding: 0.8rem 1.5rem;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #42A5F5 0%, #1976D2 100%);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.progress-text {
+    color: #0D47A1;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+/* 뒤로가기 버튼 (글래스모피즘) */
+.back-btn {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-20px);
 }
 
 .back-btn.show {
-  display: inline-block;
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateX(-3px);
+}
+
+/* 질문 영역 (글래스모피즘) */
+.question-box {
+    text-align: center;
+    margin-bottom: 4vh;
+    max-width: 700px;
+    animation: fadeInUp 0.6s ease;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    padding: 3vh 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 질문 박스 상단 글로우 */
+.question-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+}
+
+.question-emoji {
+    font-size: 4vh;
+    margin-bottom: 2vh;
+    animation: gentle-bounce 3s infinite;
+    filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3));
+}
+
+.question-box h1 {
+    font-size: 3vh;
+    color: #0D47A1;
+    margin: 0 0 2vh 0;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.5);
+}
+
+.question-box p {
+    font-size: 1.8vh;
+    color: #1976D2;
+    line-height: 1.6;
+    margin: 0;
+    opacity: 0.9;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+/* 버튼 영역 */
+.button-box {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2vh;
+    margin: 2vh 0;
+    max-width: 800px;
+    width: 100%;
+}
+
+/* 설문 버튼 (공통 스타일 적용) */
+.survey-btn {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #0D47A1;
+    padding: 2.5vh 3rem;
+    font-size: 2vh;
+    font-weight: 600;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    animation: slideInUp 0.5s ease;
+    animation-fill-mode: both;
+    min-height: 8vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+    min-width: 280px;
+}
+
+/* 버튼 글로우 효과 */
+.survey-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.survey-btn:hover::before {
+    left: 100%;
+}
+
+.survey-btn:hover {
+    background: rgba(66, 165, 245, 0.8);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.survey-btn.selected {
+    background: rgba(30, 136, 229, 0.9);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(0.98);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.survey-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* 완료 화면 (글래스모피즘) */
+.completion-container {
+    text-align: center;
+    animation: fadeIn 0.8s ease;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    padding: 4vh 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.completion-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+}
+
+.completion-emoji {
+    font-size: 5vh;
+    margin-bottom: 2vh;
+    animation: sparkle 2s infinite;
+    filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.3));
+}
+
+.status-message {
+    margin-top: 2vh;
+    padding: 1.5vh 2rem;
+    background: rgba(255, 248, 225, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    color: #0D47A1;
+    border-radius: 25px;
+    font-weight: 600;
+    animation: gentle-pulse 1.5s infinite;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Lottie 애니메이션 컨테이너 */
+#lottie-animation {
+    width: 300px;
+    height: 300px;
+    margin: 2vh auto;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 애니메이션 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes gentle-bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    25% {
+        transform: scale(1.1) rotate(5deg);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    75% {
+        transform: scale(1.1) rotate(-5deg);
+        opacity: 0.8;
+    }
+}
+
+@keyframes gentle-pulse {
+    0%, 100% { 
+        opacity: 0.9; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 1; 
+        transform: scale(1.02);
+    }
+}
+
+/* 반응형 디자인 - 아이패드 기준 */
+@media (max-width: 1024px) {
+    .wrapper {
+        height: 100vh;
+        margin: 0;
+        padding: 1.5vh 2rem;
+    }
+    
+    .question-box {
+        padding: 2.5vh 2.5rem;
+        margin-bottom: 3vh;
+    }
+    
+    .question-box h1 {
+        font-size: 2.8vh;
+    }
+    
+    .question-box p {
+        font-size: 1.6vh;
+    }
+    
+    .button-box {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.8vh;
+    }
+    
+    .survey-btn {
+        padding: 1.8vh 1.8rem;
+        font-size: 1.6vh;
+        min-height: 7vh;
+    }
+}
+
+@media (max-width: 768px) {
+    .wrapper {
+        height: 100vh;
+        margin: 0;
+        padding: 1vh 1.5rem;
+    }
+    
+    .question-box {
+        padding: 2vh 2rem;
+        margin-bottom: 2.5vh;
+    }
+    
+    .question-emoji {
+        font-size: 3.5vh;
+        margin-bottom: 1.5vh;
+    }
+    
+    .question-box h1 {
+        font-size: 2.4vh;
+        margin-bottom: 1.5vh;
+    }
+    
+    .question-box p {
+        font-size: 1.4vh;
+    }
+    
+    .button-box {
+        grid-template-columns: 1fr;
+        gap: 1.5vh;
+    }
+    
+    .survey-btn {
+        padding: 1.6vh 1.5rem;
+        font-size: 1.5vh;
+        min-height: 6vh;
+    }
+    
+    .progress-container {
+        top: 1rem;
+        padding: 0.6rem 1.2rem;
+    }
+    
+    .back-btn {
+        top: 1rem;
+        left: 1rem;
+        width: 45px;
+        height: 45px;
+    }
+    
+    #lottie-animation {
+        width: 250px;
+        height: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .wrapper {
+        height: 100vh;
+        margin: 0;
+        padding: 0.5vh 1rem;
+    }
+    
+    .question-box {
+        padding: 1.5vh 1.5rem;
+        margin-bottom: 2vh;
+    }
+    
+    .question-emoji {
+        font-size: 3vh;
+        margin-bottom: 1vh;
+    }
+    
+    .question-box h1 {
+        font-size: 2vh;
+        margin-bottom: 1vh;
+    }
+    
+    .question-box p {
+        font-size: 1.2vh;
+    }
+    
+    .button-box {
+        gap: 1vh;
+    }
+    
+    .survey-btn {
+        padding: 1.4vh 1.2rem;
+        font-size: 1.3vh;
+        min-height: 5.5vh;
+    }
+    
+    .progress-container {
+        top: 0.5rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .back-btn {
+        top: 0.5rem;
+        left: 0.5rem;
+        width: 40px;
+        height: 40px;
+    }
+    
+    #lottie-animation {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .completion-container {
+        padding: 2vh 2rem;
+    }
+    
+    .status-message {
+        padding: 1vh 1.5rem;
+        margin-top: 1.5vh;
+    }
+}
+
+/* 고대비 모드 지원 (접근성) */
+@media (prefers-contrast: high) {
+    .wrapper {
+        background: #ffffff;
+        color: #000000;
+    }
+    
+    .question-box {
+        background: #ffffff;
+        border: 3px solid #000000;
+    }
+    
+    .survey-btn {
+        background: #ffffff;
+        border: 3px solid #000000;
+        color: #000000;
+    }
+    
+    .survey-btn:hover {
+        background: #000000;
+        color: #ffffff;
+    }
+}
+
+/* 모션 감소 모드 지원 (접근성) */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 큰 폰트 모드 지원 (접근성) */
+@media (prefers-reduced-data: reduce) {
+    .wrapper::before {
+        display: none;
+    }
+    
+    .question-box::before {
+        display: none;
+    }
+    
+    .completion-container::before {
+        display: none;
+    }
 }

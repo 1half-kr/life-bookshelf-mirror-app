@@ -37,7 +37,7 @@ Module.register("customNav", {
 			this.currentPageIndex = payload;
 
 			// 페이지 인덱스에 따라 nav 표시/숨김
-			if ([0, 1, 2].includes(payload)) {
+			if ([0, 1, 2, 3].includes(payload)) { // 인터뷰 화면(3)도 숨김에 추가
 				this.hide(0); // 즉시 숨김
 			} else {
 				this.show(0); // 즉시 표시

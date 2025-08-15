@@ -10,6 +10,17 @@ Module.register("mypage", {
 		books: []
 	},
 
+	start() {
+		console.log('[MyPage] MyPage module starting');
+		this.hide(); // 시작 시 숨김
+	},
+
+	notificationReceived(notification, payload) {
+		console.log('[MyPage] Notification received:', notification, 'payload:', payload);
+		// 모든 알림 무시 - 페이지 시스템 사용하지 않음
+		return;
+	},
+
 	getDom () {
 		const wrapper = document.createElement("div");
 		wrapper.className = "publish-wrapper";

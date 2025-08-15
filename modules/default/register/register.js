@@ -1,187 +1,398 @@
 Module.register("register", {
 	defaults: {
-		apiUrl: "https://v2.lifebookshelf.org/main/api/v1/auth/device-login",
-		title: "이 기기의 Serial ID가 맞는지 확인해주세요.",
-		description: "맞다면 '등록하기'를 눌러 인터뷰를 시작해보세요 !"
+		title: "인생 이야기를 들려주세요",
+		subtitle: "소중한 추억과 경험을 기록하여 가족에게 전해드립니다",
+		welcomeMessage: "어르신의 귀중한 인생 이야기를 듣고 싶습니다",
+		actionText: "지금 시작해보세요",
+		guideText: "버튼을 눌러 소중한 이야기를 기록해보세요",
+		retryText: "다시 한번 시도해보세요"
 	},
 
-	// 최초 한 번 Serial ID 생성
 	start() {
-		this.serialID = this.generateRandomSerialID();
+		console.log('[Register] ===== REGISTER MODULE STARTING =====');
+		console.log('[Register] Module name:', this.name);
+		console.log('[Register] Module identifier:', this.identifier);
+		console.log('[Register] Module position:', this.data.position);
+		
+		this.serialID = this.generateReadableSerialID();
+		this.isRegistering = false;
+		this.registrationStep = 'ready'; // ready, registering, success, error
+		
+		// register는 첫 페이지이므로 바로 표시
+		console.log('[Register] Calling this.show() immediately');
+		this.show();
+		
+		// DOM이 준비된 후 강제로 표시
+		setTimeout(() => {
+			console.log('[Register] Force showing register module');
+			this.show(0, {force: true});
+		}, 100);
+		
+		// API 클라이언트 초기화 확인
+		setTimeout(() => {
+			this.checkAPIClient();
+		}, 1000);
+		
+		// 페이지 시스템을 사용하지 않으므로 PAGE_CHANGED 알림 제거
+		// setTimeout(() => {
+		//	console.log('[Register] Setting initial page to 0');
+		//	this.sendNotification("PAGE_CHANGED", 0);
+		// }, 1000);
+		
+		console.log('[Register] ===== REGISTER START COMPLETED =====');
 	},
 
-	generateRandomSerialID() {
-		const timestamp = Date.now().toString(36); // 시간 기반
-		const randomStr = Math.random().toString(36).substring(2, 8); // 무작위 문자열
-		return `RPI-${timestamp}-${randomStr}`.toUpperCase();
-	},
-
-	// POST 요청 메서드 정의
-	postData(data) {
-		const formData = new FormData();
-		formData.append("deviceId", data.serialID);
-
-		fetch(this.config.apiUrl, {
-			method: "POST",
-			body: formData
-		})
-			.then(async (res) => {
-				const responseBody = await res.json(); // 먼저 응답 JSON을 파싱
-
-				if (res.status === 202) {
-					console.log("등록 완료");
-					console.log("서버 응답:", responseBody);
-
-					if (responseBody.accessToken) {
-						this.sendSocketNotification("SAVE_TOKEN", responseBody.accessToken);
-					}
-					this.movePage();
-				} else {
-					console.error("등록 실패: 응답 코드", res.status);
-					console.error("서버 응답:", responseBody);
-					alert(`등록 실패!\n상태 코드: ${res.status}\n메시지: ${responseBody.message || "알 수 없음"}`);
+	// API 클라이언트 상태 확인
+	checkAPIClient() {
+		if (window.apiClient && typeof window.apiClient.registerDevice === 'function') {
+			console.log('[Register] ✅ API client is ready');
+			
+			// 서버 상태도 확인
+			setTimeout(async () => {
+				try {
+					console.log('[Register] 🔍 Testing server connection...');
+					const isOnline = await window.apiClient.testServerConnection();
+					console.log('[Register] Server online:', isOnline);
+				} catch (error) {
+					console.warn('[Register] Server test failed:', error.message);
 				}
-			})
-			.catch((err) => {
-				console.error("등록 오류:", err);
-				alert("서버 오류가 발생했습니다.");
-			});
+			}, 1000);
+		} else {
+			console.warn('[Register] ⚠️ API client not found, will wait during registration');
+		}
 	},
 
-	// 페이지 이동 함수
-	movePage() {
-		this.sendNotification("PAGE_CHANGED", 1);
+	notificationReceived(notification, payload) {
+		console.log('[Register] Notification received:', notification, 'payload:', payload);
+		// 모든 알림 무시 - 페이지 시스템 사용하지 않음
+		return;
 	},
 
-	/** dom, style - bottom sheet control을 위해 dom 사용 **/
+	getScripts() {
+		return [
+			"modules/default/shared/config.js",
+			"modules/default/shared/api-client.js"
+		];
+	},
+
+	// 읽기 쉬운 Serial ID 생성 (고령자 친화적)
+	generateReadableSerialID() {
+		const today = new Date();
+		const year = today.getFullYear().toString().slice(-2);
+		const month = String(today.getMonth() + 1).padStart(2, '0');
+		const randomNum = Math.floor(Math.random() * 999) + 1;
+		return `LB${year}${month}${String(randomNum).padStart(3, '0')}`;
+	},
+
+	// API 호출 - 고령자를 위한 친절한 메시지
+	async registerDevice() {
+		if (this.isRegistering) return;
+		
+		this.isRegistering = true;
+		this.registrationStep = 'registering';
+		this.updateDom();
+
+		try {
+			console.log('[Register] Starting device registration with ID:', this.serialID);
+			
+			// API 클라이언트 로딩 대기
+			await this.waitForAPIClient();
+			
+			console.log('[Register] API client loaded, making request...');
+			
+			// API 호출
+			const response = await window.apiClient.registerDevice(this.serialID);
+			console.log('[Register] ===== REGISTRATION RESPONSE =====');
+			console.log('[Register] Full response:', response);
+			console.log('[Register] Response type:', typeof response);
+			console.log('[Register] Response keys:', response ? Object.keys(response) : 'null');
+			console.log('[Register] user_id exists:', !!response?.user_id);
+			console.log('[Register] user_id value:', response?.user_id);
+			console.log('[Register] profile_completed exists:', !!response?.profile_completed);
+			console.log('[Register] profile_completed value:', response?.profile_completed);
+			console.log('[Register] =====================================');
+			
+			if (response && response.user_id) {
+				console.log('[Register] ✅ Valid response with user_id');
+				
+				// 바로 로딩 화면으로 전환
+				this.registrationStep = 'transitioning';
+				this.updateDom();
+				
+				// profile_completed 체크하여 페이지 결정
+				const nextPage = response.profile_completed ? 3 : 1; // true면 chat(3), false면 metadata(1)
+				console.log('[Register] Profile completed:', response.profile_completed, 'Next page:', nextPage);
+				
+				// userId를 다른 모듈들에게 전달
+				this.sendNotification("USER_REGISTERED", {
+					userId: response.user_id,
+					profileCompleted: response.profile_completed
+				});
+				
+				// 등록 완료 후 처리 (페이지 시스템 사용하지 않음)
+				setTimeout(() => {
+					console.log('[Register] ✅ Registration completed successfully');
+					console.log('[Register] 📝 User can now proceed to other modules');
+					
+					// register 모듈 숨기기 (사용자가 직접 다른 모듈로 이동)
+					this.hide(500);
+					
+					// 페이지 시스템 사용하지 않으므로 PAGE_CHANGED 제거
+					// this.sendNotification("PAGE_CHANGED", nextPage);
+					
+					// register 상태를 ready로 리셋 (다음 사용을 위해)
+					setTimeout(() => {
+						this.isRegistering = false;
+						this.registrationStep = 'ready';
+					}, 1000);
+				}, 2000);
+			} else {
+				console.error('[Register] ❌ Invalid response - missing user_id');
+				console.error('[Register] Expected: { user_id: string, profile_completed: boolean }');
+				console.error('[Register] Received:', response);
+				throw new Error('서버 응답이 올바르지 않습니다.\n\n관리자에게 문의해주세요.');
+			}
+
+		} catch (error) {
+			console.error('[Register] Registration failed:', error);
+			this.registrationStep = 'error';
+			
+			// 더 구체적인 에러 메시지 설정
+			if (error.message.includes('오프라인')) {
+				this.errorMessage = '서버가 현재 오프라인 상태입니다.\n관리자에게 문의해주세요.';
+			} else if (error.message.includes('네트워크')) {
+				this.errorMessage = '인터넷 연결을 확인하고\n다시 시도해주세요.';
+			} else if (error.message.includes('서버')) {
+				this.errorMessage = '서버에 일시적인 문제가 있습니다.\n잠시 후 다시 시도해주세요.';
+			} else {
+				this.errorMessage = error.message || '등록 중 오류가 발생했습니다.\n다시 시도해주세요.';
+			}
+			
+			this.updateDom();
+			
+			// 10초 후 다시 시도 가능 (서버 오프라인 시 충분한 시간)
+			setTimeout(() => {
+				this.isRegistering = false;
+				this.registrationStep = 'ready';
+				this.updateDom();
+			}, 10000);
+		}
+	},
+
+	// API 클라이언트 로딩 대기
+	async waitForAPIClient(maxAttempts = 20) {
+		console.log('[Register] Waiting for API client to load...');
+		
+		for (let i = 0; i < maxAttempts; i++) {
+			// 현재 상태 로깅
+			console.log(`[Register] Attempt ${i + 1}/${maxAttempts}:`);
+			console.log('  - window.apiClient exists:', !!window.apiClient);
+			
+			if (window.apiClient) {
+				console.log('  - registerDevice method exists:', typeof window.apiClient.registerDevice);
+				
+				if (typeof window.apiClient.registerDevice === 'function') {
+					console.log('[Register] ✅ API client found and ready');
+					return true;
+				}
+			}
+			
+			console.log(`[Register] ⏳ Waiting for API client... (${i + 1}/${maxAttempts})`);
+			await new Promise(resolve => setTimeout(resolve, 500));
+		}
+		
+		// 최종 상태 로깅
+		console.error('[Register] ❌ API client loading failed');
+		console.error('Final state:');
+		console.error('  - window.apiClient:', window.apiClient);
+		console.error('  - Available window properties:', Object.keys(window).filter(key => key.includes('api') || key.includes('API')));
+		
+		throw new Error('API 클라이언트를 로드할 수 없습니다.\n\n페이지를 새로고침하거나 관리자에게 문의해주세요.');
+	},
+
 	getDom() {
 		const wrapper = document.createElement("div");
-		wrapper.classList.add("wrapper");
+		wrapper.className = "register-container";
 
-		// 타이틀, 설명
+		// 헤더 섹션
+		const header = document.createElement("div");
+		header.className = "register-header";
+		
+		const welcomeIcon = document.createElement("div");
+		welcomeIcon.className = "welcome-icon";
+		welcomeIcon.innerHTML = "📖";
+		header.appendChild(welcomeIcon);
+
 		const title = document.createElement("h1");
+		title.className = "register-title";
 		title.textContent = this.config.title;
-		wrapper.appendChild(title);
+		header.appendChild(title);
 
-		const desc = document.createElement("p");
-		desc.textContent = this.config.description;
-		wrapper.appendChild(desc);
+		const subtitle = document.createElement("p");
+		subtitle.className = "register-subtitle";
+		subtitle.textContent = this.config.subtitle;
+		header.appendChild(subtitle);
 
-		// Serial ID 출력용 div
-		const serialDisplay = document.createElement("div");
-		serialDisplay.classList.add("serial-display");
-		serialDisplay.textContent = `Serial ID: ${this.serialID}`;
-		wrapper.appendChild(serialDisplay);
+		const welcomeMsg = document.createElement("p");
+		welcomeMsg.className = "welcome-message";
+		welcomeMsg.textContent = this.config.welcomeMessage;
+		header.appendChild(welcomeMsg);
 
-		const buttonContainer = document.createElement("div");
-		buttonContainer.classList.add("flex-row");
-		buttonContainer.addEventListener("click", () => this.showBottomSheet());
+		wrapper.appendChild(header);
 
-		const information_text = document.createElement("p");
-		information_text.textContent = "Serial ID는 어디서 확인하나요 ?";
+		// 기기 ID 카드 (간소화)
+		const deviceCard = document.createElement("div");
+		deviceCard.className = "device-card";
+		
+		const deviceLabel = document.createElement("div");
+		deviceLabel.className = "device-label";
+		deviceLabel.textContent = "기기 번호";
+		deviceCard.appendChild(deviceLabel);
 
-		// 등록하기 버튼 (아이콘 이미지)
-		const information_icon = document.createElement("img");
-		information_icon.src = "modules/default/register/assets/info_icon.svg"; // 외부 SVG 경로
-		information_icon.alt = "info icon";
-		information_icon.classList.add("info_icon");
+		const deviceValue = document.createElement("div");
+		deviceValue.className = "device-value";
+		deviceValue.textContent = this.serialID;
+		deviceCard.appendChild(deviceValue);
 
-		// 버튼 컨테이너에 요소 추가
-		buttonContainer.appendChild(information_text);
-		buttonContainer.appendChild(information_icon);
+		wrapper.appendChild(deviceCard);
 
-		// 버튼 컨테이너를 wrapper에 추가
-		wrapper.appendChild(buttonContainer);
+		// 상태별 컨텐츠
+		const contentArea = document.createElement("div");
+		contentArea.className = "content-area";
 
-		// 등록하기 버튼
-		const submitBtn = document.createElement("button");
-		submitBtn.textContent = "등록하기";
-		submitBtn.addEventListener("click", () => {
-			this.postData({ serialID: this.serialID });
-		});
-		wrapper.appendChild(submitBtn);
-
-		// Bottom Sheet 생성 (처음에는 hidden)
-		const sheet = document.createElement("div");
-		sheet.className = "bottom-sheet hidden";
-		sheet.innerHTML = `
-				<h1 id="sheet-title">Serial ID 확인하기</h1>
-				<div class="sheet-info-box">
-					<p id="sheet-step">1/2</p>
-					<p id="sheet-content">아래와 같이 기기의 블루투스를 연결해주세요.</p>
+		if (this.registrationStep === 'registering') {
+			contentArea.innerHTML = `
+				<div class="status-container registering">
+					<div class="loading-dots">
+						<div class="dot"></div>
+						<div class="dot"></div>
+						<div class="dot"></div>
+					</div>
+					<div class="status-text">시스템에 등록하고 있습니다</div>
+					<div class="status-subtext">잠시만 기다려주세요</div>
 				</div>
-				<video id="sheet-video" src="modules/default/register/video/example_video1.mp4" width="100%" autoplay loop muted></video>
-				<button id="sheet-button">다음</button>
+			`;
+		} else if (this.registrationStep === 'success') {
+			contentArea.innerHTML = `
+				<div class="status-container success">
+					<div class="success-icon">✓</div>
+					<div class="status-text">등록이 완료되었습니다</div>
+					<div class="status-subtext">잠시만 기다려주세요</div>
+				</div>
+			`;
+		} else if (this.registrationStep === 'transitioning') {
+			contentArea.innerHTML = `
+				<div class="loading-screen">
+					<div class="loading-animation">
+						<div class="floating-elements">
+							<div class="element element-1">📖</div>
+							<div class="element element-2">✨</div>
+							<div class="element element-3">🌟</div>
+							<div class="element element-4">💫</div>
+						</div>
+					</div>
+					<div class="loading-text">다음 단계로 이동합니다</div>
+					<div class="loading-subtext">소중한 이야기를 들려주세요</div>
+				</div>
+			`;
+		} else if (this.registrationStep === 'error') {
+			contentArea.innerHTML = `
+				<div class="status-container error">
+					<div class="error-icon">🔌</div>
+					<div class="status-text">서버 연결 오류</div>
+					<div class="status-subtext" style="white-space: pre-line; line-height: 1.5;">${this.errorMessage || '알 수 없는 오류가 발생했습니다'}</div>
+					<div class="retry-hint">10초 후 다시 시도할 수 있습니다</div>
+				</div>
+			`;
+		} else {
+			// 기본 상태 - 등록 버튼
+			const actionArea = document.createElement("div");
+			actionArea.className = "action-area";
+
+			// 메인 등록 버튼 (행동 유도적)
+			const registerButton = document.createElement("button");
+			registerButton.className = "register-button";
+			registerButton.innerHTML = `
+				<span class="button-text">${this.config.actionText}</span>
+			`;
+			registerButton.onclick = () => this.registerDevice();
+			actionArea.appendChild(registerButton);
+
+			// 안내 텍스트 (행동 유도적)
+			const guideText = document.createElement("p");
+			guideText.className = "guide-text";
+			guideText.textContent = this.config.guideText;
+			actionArea.appendChild(guideText);
+
+			// 정보 버튼 (최소화)
+			const infoButton = document.createElement("button");
+			infoButton.className = "info-button";
+			infoButton.innerHTML = `<span class="info-text">기기 번호가 궁금하세요?</span>`;
+			infoButton.onclick = () => this.showInfoModal();
+			actionArea.appendChild(infoButton);
+
+			contentArea.appendChild(actionArea);
+		}
+
+		wrapper.appendChild(contentArea);
+
+		// 정보 모달 (간소화)
+		const modal = document.createElement("div");
+		modal.className = "info-modal hidden";
+		modal.innerHTML = `
+			<div class="modal-overlay"></div>
+			<div class="modal-content">
+				<div class="modal-header">
+					<h2>기기 번호 안내</h2>
+					<button class="modal-close">×</button>
+				</div>
+				<div class="modal-body">
+					<div class="info-item">
+						<h3>자동으로 만들어집니다</h3>
+						<p>기기 번호는 시스템에서 자동으로 생성하는 고유한 번호입니다.</p>
+					</div>
+					<div class="info-item">
+						<h3>개인정보는 포함되지 않습니다</h3>
+						<p>이름이나 주소 등은 전혀 포함되지 않는 안전한 번호입니다.</p>
+					</div>
+					<div class="info-item">
+						<h3>소중한 이야기 보관용입니다</h3>
+						<p>어르신의 귀중한 인생 이야기를 안전하게 보관하기 위한 번호입니다.</p>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button class="modal-confirm">네, 이해했습니다</button>
+				</div>
+			</div>
 		`;
-		wrapper.appendChild(sheet);
-		this.sheetElement = sheet;
-
-		// Overlay 생성 (처음에는 hidden)
-		const overlay = document.createElement("div");
-		overlay.className = "bottom-sheet-overlay hidden";
-		wrapper.appendChild(overlay);
-
-		// overlay 클릭 시 닫기
-		overlay.addEventListener("click", () => {
-			this.hideBottomSheet();
-		});
+		wrapper.appendChild(modal);
 
 		return wrapper;
 	},
 
-	getStyles() {
-		return ["register.css"];
-	},
+	showInfoModal() {
+		const modal = document.querySelector('.info-modal');
+		if (modal) {
+			modal.classList.remove('hidden');
+			modal.classList.add('show');
 
-	/** bottom sheet 영역 **/
-	showBottomSheet() {
-		const sheet = document.querySelector(".bottom-sheet");
-		const overlay = document.querySelector(".bottom-sheet-overlay");
-		if (sheet && overlay) {
-			sheet.classList.remove("hidden");
-			sheet.classList.add("show");
-			overlay.classList.remove("hidden");
-			overlay.classList.add("show");
+			// 모달 닫기 이벤트
+			const closeBtn = modal.querySelector('.modal-close');
+			const confirmBtn = modal.querySelector('.modal-confirm');
+			const overlay = modal.querySelector('.modal-overlay');
 
-			const video = sheet.querySelector("#sheet-video");
-			const step_t = sheet.querySelector("#sheet-step");
-			const content = sheet.querySelector("#sheet-content");
-			const nextBtn = sheet.querySelector("#sheet-button");
-
-			const handleClick = () => {
-				if (nextBtn.textContent === "닫기") {
-					this.hideBottomSheet();
-					nextBtn.removeEventListener("click", handleClick); // 이벤트 중복 방지
-
-					// 초기화
-					step_t.textContent = "1/2";
-					content.textContent = "아래와 같이 기기의 블루투스를 연결해주세요.";
-					video.src = "modules/default/register/video/example_video1.mp4";
-					video.load(); // 비디오 소스 변경 후 로드
-					video.play();
-					nextBtn.textContent = "다음";
-				} else {
-					step_t.textContent = "2/2";
-					content.textContent = "아래와 같이 화면애 뜬 Serail ID를 확인해주세요.";
-					video.src = "modules/default/register/video/example_video2.mp4";
-					video.load(); // 비디오 소스 변경 후 로드
-					video.play();
-					nextBtn.textContent = "닫기";
-				}
+			const closeModal = () => {
+				modal.classList.remove('show');
+				modal.classList.add('hidden');
 			};
 
-			nextBtn.addEventListener("click", handleClick);
+			closeBtn.onclick = closeModal;
+			confirmBtn.onclick = closeModal;
+			overlay.onclick = closeModal;
 		}
 	},
 
-	hideBottomSheet() {
-		const sheet = document.querySelector(".bottom-sheet");
-		const overlay = document.querySelector(".bottom-sheet-overlay");
-		if (sheet && overlay) {
-			sheet.classList.remove("show");
-			sheet.classList.add("hidden");
-			overlay.classList.remove("show");
-			overlay.classList.add("hidden");
-		}
+	getStyles() {
+		return ["register.css"];
 	}
 });

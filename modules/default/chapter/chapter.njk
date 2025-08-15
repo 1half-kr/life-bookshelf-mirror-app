@@ -1,0 +1,26 @@
+<!-- Chapter Module Template -->
+<div class="chapter-wrapper">
+    <div class="chapter-header">
+        <h1 class="chapter-title">{{ title || "챕터" }}</h1>
+        <p class="chapter-subtitle">{{ subtitle || "자서전 챕터" }}</p>
+    </div>
+    
+    <div class="chapter-content">
+        <div class="chapter-info">
+            <p>{{ content || "챕터 내용이 여기에 표시됩니다." }}</p>
+        </div>
+    </div>
+    
+    <div class="chapter-actions">
+        <button class="chapter-btn" onclick="nextChapter()">
+            다음 챕터
+        </button>
+    </div>
+</div>
+
+<script>
+function nextChapter() {
+    console.log('Next chapter clicked');
+    // 다음 챕터로 이동하는 로직
+}
+</script>
